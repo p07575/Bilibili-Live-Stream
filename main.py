@@ -66,6 +66,8 @@ class Player(QMainWindow):
         self.setup_player()
         self.setup_danmu()
 
+        self.loop = None
+
     def setup_player(self):
         self.instance = vlc.Instance()
         self.player = self.instance.media_player_new()
@@ -97,11 +99,8 @@ class Player(QMainWindow):
         self.danmu_thread.start()
 
     def stop_danmu_thread(self):
-        if self.danmu_thread:
-            try:
-                asyncio.run_coroutine_threadsafe(self.room.disconnect(), self.room.api.session.loop)
-            except:
-                pass
+        if self.loop:
+            asyncio.run_coroutine_threadsafe(self.room.disconnect(), self.loop)
             self.danmu_thread.join()
             self.danmu_thread = None
 
@@ -157,11 +156,11 @@ class Player(QMainWindow):
         self.danmu_display.ensureCursorVisible()
 
     def run_danmu_client(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
         self.on_danmaku  # This line is necessary to register the event handler
         print("\033[32m[INFO] Connecting to danmu room...\033[0m")
-        loop.run_until_complete(self.room.connect())
+        self.loop.run_until_complete(self.room.connect())
 
     def change_volume(self):
         volume = self.volume_slider.value()
