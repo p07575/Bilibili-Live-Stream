@@ -1,4 +1,4 @@
-vlc
+python-vlc
 asyncio
 PyQt5
 bilibili-api
