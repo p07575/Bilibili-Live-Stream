@@ -3,10 +3,13 @@ import vlc
 import asyncio
 import threading
 import url
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QDesktopWidget, QTextEdit, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QSlider
+import os
+import json
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QDesktopWidget, QTextEdit, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QSlider, QLineEdit
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtGui import QColor, QTextCharFormat, QIcon
-from bilibili_api import live, user, login
+from bilibili_api import live, user, login, Credential
+from bilibili_api.live import LiveRoom, Danmaku
 import tkinter as tk
 from tkinter import ttk
 
@@ -42,6 +45,15 @@ class Player(QMainWindow):
         self.danmu_display = QTextEdit(self)
         self.danmu_display.setReadOnly(True)
         danmu_control_layout.addWidget(self.danmu_display)
+
+        # Danmu input
+        self.danmu_input = QLineEdit(self)
+        danmu_control_layout.addWidget(self.danmu_input)
+
+        # Send danmu button
+        self.send_danmu_button = QPushButton("Send Danmu")
+        self.send_danmu_button.clicked.connect(self.send_danmu)
+        danmu_control_layout.addWidget(self.send_danmu_button)
 
         # Control buttons
         control_layout = QHBoxLayout()
@@ -86,6 +98,7 @@ class Player(QMainWindow):
 
     def setup_danmu(self):
         self.room = live.LiveDanmaku(self.room_id, credential=self.credential)
+        self.live_room = LiveRoom(self.room_id, self.credential)
 
         self.danmu_signals = DanmuSignals()
         self.danmu_signals.new_danmu.connect(self.display_danmu)
@@ -178,26 +191,88 @@ class Player(QMainWindow):
         print("Resetting danmu")
         self.danmu_display.clear()
 
+    def send_danmu(self):
+        danmu_text = self.danmu_input.text()
+        if danmu_text:
+            asyncio.run_coroutine_threadsafe(self._send_danmu(danmu_text), self.loop)
+            self.danmu_input.clear()
+
+    async def _send_danmu(self, text):
+        try:
+            await self.live_room.send_danmaku(Danmaku(text))
+            print(f"\033[32m[SENT] Danmu sent: {text}\033[0m")
+        except Exception as e:
+            print(f"\033[31m[ERROR] Failed to send danmu: {e}\033[0m")
+
     def closeEvent(self, event):
         self.stop_danmu_thread()
         super().closeEvent(event)
 
+def create_credential_if_not_exist(credential_file='credential.json'):
+    if not os.path.exists(credential_file):
+        credential = {
+            "sessdata": "",
+            "bili_jct": "",
+            "buvid3": "",
+            "dedeuserid": "",
+            "ac_time_value": ""
+        }
+        with open(credential_file, 'w') as f:
+            json.dump(credential, f, indent=4)
+        return credential
+    else:
+        return load_credential(credential_file)
+
+def load_credential(credential_file='credential.json'):
+    with open(credential_file, 'r') as f:
+        credential = json.load(f)
+    return credential
+
+def save_config(credential, config_file='credential.json'):
+    config = {
+        "sessdata": credential.sessdata,
+        "bili_jct": credential.bili_jct,
+        "buvid3": credential.buvid3,
+        "dedeuserid": credential.dedeuserid,
+        "ac_time_value": credential.ac_time_value
+    }
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=4)
+
 def main():
     def start_player():
+        cred = create_credential_if_not_exist()
+
+        print(cred['sessdata'])
+
         room_id = int(room_id_entry.get())
         root.destroy()  # Close the Tkinter window
 
         loop = asyncio.get_event_loop()
         
-        print("\033[33m请登录：\033[0m")
-        credential = login.login_with_qrcode()
-        try:
-            credential.raise_for_no_bili_jct()
-            credential.raise_for_no_sessdata()
-        except:
-            print("\033[31m登陆失敗。。。\033[0m")
-            return
-
+        if cred['sessdata'] == "":
+            print("\033[33m请登录：\033[0m")
+            credential = login.login_with_qrcode()
+            print(credential.sessdata)
+            print(credential.bili_jct)
+            save_config(credential)
+            try:
+                credential.raise_for_no_bili_jct()
+                credential.raise_for_no_sessdata()
+            except:
+                print("\033[31m登陆失敗。。。\033[0m")
+                return
+        else:
+            credential = Credential(sessdata=cred['sessdata'], bili_jct=cred['bili_jct'], ac_time_value=cred['ac_time_value'], buvid3=cred['buvid3'])
+            print(credential.sessdata)
+            print(credential.bili_jct)
+            try:
+                credential.raise_for_no_bili_jct()
+                credential.raise_for_no_sessdata()
+            except:
+                print("\033[31m登陆失敗。。。\033[0m")
+                return
+            
         user_info = loop.run_until_complete(user.get_self_info(credential))
         print(f"\033[32m歡迎，{user_info['name']}!\033[0m")
 
