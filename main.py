@@ -1,10 +1,10 @@
 import sys
-import vlc
 import asyncio
 import threading
 import url
 import os
 import json
+import vlc
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFrame, QDesktopWidget, QTextEdit, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QSlider, QLineEdit
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtGui import QColor, QTextCharFormat, QIcon
@@ -19,7 +19,7 @@ class DanmuSignals(QObject):
 class Player(QMainWindow):
     def __init__(self, stream_url, room_id, credential):
         super().__init__()
-        self.setWindowIcon(QIcon('favicon.ico'))
+        self.setWindowIcon(QIcon('_internal/favicon.ico'))
         self.setWindowTitle("Bilibili Live Player")
         self.stream_url = stream_url
         self.room_id = room_id
@@ -287,7 +287,7 @@ def main():
 
     # Create Tkinter window
     root = tk.Tk()
-    root.iconbitmap("favicon.ico")
+    root.iconbitmap("_internal/favicon.ico")
     root.title("Bilibili Live Player")
     root.geometry("300x120")
 

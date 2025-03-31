@@ -25,7 +25,7 @@ class BiliLiveStream:
 
         if "data" not in data or "durl" not in data["data"]:
             return None
-
+        
         return data["data"]["durl"][0]["url"]
 
     @staticmethod
